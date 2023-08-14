@@ -1,0 +1,116 @@
+# [알고리즘] BFS - 게임 맵 최단거리 찾기
+
+[https://nahwasa.com/entry/BFS-알고리즘-너비-우선-탐색-배열-BFS-그래프-BFS](https://nahwasa.com/entry/BFS-%EC%95%8C%EA%B3%A0%EB%A6%AC%EC%A6%98-%EB%84%88%EB%B9%84-%EC%9A%B0%EC%84%A0-%ED%83%90%EC%83%89-%EB%B0%B0%EC%97%B4-BFS-%EA%B7%B8%EB%9E%98%ED%94%84-BFS)
+
+프로그래머스
+
+- 게임 맵 최단거리 찾기
+- https://school.programmers.co.kr/learn/courses/30/lessons/1844
+
+문제 개요
+
+- 주어진 배열을 통해 시작지점에서 끝점까지의 최단 거리를 구하는 문제
+- 경로의 시작 지점과 종료지점이 정해져 있음.
+- 끝점까지의 경로가 막힌 경우가 존재함.
+- 배열요소중 1은 이동할 수 있는 경로, 0는 이동불가를 뜻함.
+
+참고 링크
+
+- [https://nahwasa.com/entry/BFS-알고리즘-너비-우선-탐색-배열-BFS-그래프-BFS](https://nahwasa.com/entry/BFS-%EC%95%8C%EA%B3%A0%EB%A6%AC%EC%A6%98-%EB%84%88%EB%B9%84-%EC%9A%B0%EC%84%A0-%ED%83%90%EC%83%89-%EB%B0%B0%EC%97%B4-BFS-%EA%B7%B8%EB%9E%98%ED%94%84-BFS)
+
+전개
+
+- 최단 경로를 찾아야하므로 BFS 활용
+- Delta 배열을 활용하여 문제 해결 (참고링크 참조)
+
+```js
+const search = (maps) => {
+  class Pos {
+    constructor(r, c, dist) {
+      this.r = r;
+      this.c = c;
+      this.dist = dist;
+    }
+  }
+
+  //Delta Row
+  const DR = [1, 0, -1, 0];
+
+  //Delta Colum
+  const DC = [0, 1, 0, -1];
+
+  const mapsRowSize = maps.length;
+  const mapsColumSize = maps[0].length;
+
+  const queue = []; //BFS 탐색을 위한 큐
+  let visited = new Array(mapsRowSize).fill(0); //이미 방문한곳을 가지 않도록 체크
+  visited = visited.map(() => {
+    return new Array(mapsColumSize).fill(false);
+  });
+
+  //시작위치는 0,0으로 고정
+  //만약 시작 위치가 변동된다면 배열을 순회하여 시작지점을 미리 탐색하여 큐에 삽입필요
+  queue.unshift(new Pos(0, 0, 0));
+  visited[0][0] = true;
+
+  while (queue.length !== 0) {
+    const cur = queue.pop();
+
+    for (let i = 0; i < DR.length; i++) {
+      let nextR = cur.r + DR[i];
+      let nextC = cur.c + DC[i];
+      let nextDist = cur.dist + 1;
+
+      //다음 탐색할 위치가 미로를 벗어난 위치이거나 이미 방문한 곳이거나
+      //장애물인 경우 탐색에서 제외
+      if (
+        nextR < 0 ||
+        nextR >= mapsRowSize ||
+        nextC < 0 ||
+        nextC >= mapsColumSize ||
+        visited[nextR][nextC] ||
+        maps[nextR][nextC] === 0
+      ) {
+        continue;
+      }
+
+      if (
+        maps[nextR][nextC] === 1 &&
+        nextR === mapsRowSize - 1 &&
+        nextC === mapsColumSize - 1
+      ) {
+        console.log("탐색완료");
+        //+1을 하는 이유는 시작지점을 포함하기 때문
+        return nextDist + 1;
+      }
+
+      //큐에 다음 탐색할 곳을 넣음.
+      queue.unshift(new Pos(nextR, nextC, nextDist));
+      visited[nextR][nextC] = true;
+    }
+  }
+
+  console.log("목적지 발견 실패");
+  return -1;
+};
+
+console.log(
+  search([
+    [1, 0, 1, 1, 1],
+    [1, 0, 1, 0, 1],
+    [1, 0, 1, 1, 1],
+    [1, 1, 1, 0, 1],
+    [0, 0, 0, 0, 1],
+  ])
+); //11
+
+console.log(
+  search([
+    [1, 0, 1, 1, 1],
+    [1, 0, 1, 0, 1],
+    [1, 0, 1, 1, 1],
+    [1, 1, 1, 0, 0],
+    [0, 0, 0, 0, 1],
+  ])
+); //-1
+```
