@@ -336,3 +336,181 @@ function range(start: number, limit: number) {
   return out; //타입이 number[]
 }
 ```
+
+- out의 타입은 any[]로 선언되었지만, number 타입의 값을 넣는 순간부터 타입은 number[]로 진화(evolve)
+- 타입의 진화는 타입 좁히기와는 다름.
+
+e.g : 배열에 다양한 타입의 요소를 넣어서 배열의 타입이 확장되며 진화하는 예
+
+```tsx
+const result = []; // 타입이 nay[]
+result.push("a");
+result.result // 타입이 string[]
+  .push(1);
+result; // 타입이 (string | number)[]
+```
+
+e.g : 분기에 따라 타입이 변하는 예
+
+```tsx
+let val;
+if (Math.random() < 0.5) {
+  val = /hello/;
+  val; // 타입이 RegExp
+} else {
+  val = 12;
+  val; // 타입이 number
+}
+val; //타입이 number | RegExp
+```
+
+- 변수의 초깃값이 null인 경우도 any의 진화가 일어남
+- 보통 try, catch 블록 안에서 변수를 할당하는 경우에 나타남
+
+e.g : 예외처리구문으로 인해 타입이 변경되는 코드
+
+```tsx
+let val = null; //타입이 any
+try {
+  somethingDangerous();
+  val = 12; //타입이 number
+  val;
+} catch (e) {
+  console.warn("alas!");
+}
+val; // 타입이 number | null
+```
+
+- any 타입의 진화는 noImplicityAny가 설정된 상태에서 변수의 타입이 암시적인 any인 경우에만 발생
+- 그러나 명시적으로 any를 선언하면 타입이 그대로 유지
+
+e.g : 명시적으로 any를 선언하면 타입이 그대로 유지되는 예
+
+```tsx
+let val: any; // 타입이 any
+if (Math.random() < 0.5) {
+  val = /hello/;
+  val; // 타입이 any
+} else {
+  val = 12;
+  val; // 타입이 any
+}
+val; //타입이 any
+```
+
+e.g: 암시적 any 상태인 변수에 어떠한 할당도 하지 않고 사용하려고 하면 암시적 any오류가 발생
+
+```tsx
+function range(strat: number, limit: number) {
+  const out = [];
+
+  if (start === limit) {
+    return out;
+    //error - Variable 'out' implicitly has type 'any[]'
+    // in some locations where its type cannot be determined.
+  }
+
+  for (let i = start; i < limit; i++) {
+    out.push(i);
+  }
+  return out;
+}
+```
+
+- any 타입의 진화는 암시적 any 타입에 어떤 값을 할당할 때만 발생.
+- 그리고 어떤 변수가 암시적 any상태일 때 값을 읽으려고 하면 오류가 발생.
+- 암시적 any 타입은 함수 호출을 거쳐도 진화하지 않음.
+
+e.g : forEach안의 화살표 함수는 추론에 영향을 미치지 않음.
+
+```tsx
+function makeSquares(start: number, limit: number) {
+  const out = [];
+  //Error -  out 변수는 일부 위치에서 암시적으로 any[] 형식
+
+  range(start, limit).forEach((i) => {
+    out.push(i * i);
+  });
+  return out;
+  // Error - out 변수에는 암시적으로 any[] 형식이 포함됨.
+}
+```
+
+- 루프로 순회하는 대신, 배열의 map과 filter 메서드를 통해 단일 구문으로 배열을 생성하여 any 전체를 진화시키는 방법을 생각해 볼 수 있음.
+- any가 진화하는 방식은 일반적인 변수가 추론되는 원리와 동일
+- 진화한 배열의 타입이 (string | number)[]라면, 원래 number[] 타입이어야하지만 실수로 string이 섞여서 잘못 진화한 것일 수도 있음.
+- 타입을 안전하게 지키기 위해서는 암시적 any를 진화시키는 방식보다 명시적 타입 구문을 사용하는 것이 더 좋은 설계
+
+## 요약
+
+- 일반적인 타입들은 정제되기만 하는 반면, 암시적 any와 any[]타입은 진화할 수 있음. 이러한 동작이 발생하는 코드를 인지하고 이해할 수 있어야함.
+- any를 진화시키는 방식보다 명시적 타입 구문을 사용하는 것이 안전한 타입을 유지하는 방법
+
+## 42 모르는 타입의 값에는 any 대신 unknown을 사용하기
+
+- unknown에는 함수의 반환값과 관련된 형태, 변수 선언과 관련된 형태, 단언문과 관련된 형태가 존재.
+
+**함수의 반환값과 관련된 unknown**
+
+e.g : YAML 파서인 parseYAML 함수를 작성. JSON.parse의 반환 타입과 동일하게 parseYAML메서드의 반환타입을 any로 생성
+
+```tsx
+function parseYAML(yaml: string): any {
+  //...
+}
+```
+
+- 함수의 반환 타입으로 any를 사용하는 것은 좋지 않은 설계
+
+e.g : parseYAML를 호출한 곳에서 반환값을 원하는 타입으로 할당하는 것이 이상적
+
+```tsx
+interface Book {
+  name: string;
+  author: string;
+}
+const book: Book = parseYAML(`
+	name: Wuthering Heights
+	author: Emily Bronte
+`);
+```
+
+- 그러나 함수의 반환값에 타입 선언을 강제할 수 없으므로 호출한 곳에서 타입 선언을 생략하게 되면 book 변수는 암시적으로 any타입이 되고, 사용되는 곳 마다 타입 오류가 발생하게 됨.
+
+e.g : 에러 발생예
+
+```tsx
+const book = parseYAML(`
+	name: Jane Eyre
+	author: Charlotte Bronte
+`);
+alert(book.title); // 오류 없음. 런타임에 "undefined" 경고
+book("read"); //오류 없음, 런타임에 "TypeError: book은 함수가 아닙니다" 예외 발생
+```
+
+e.g : parseYAML이 unknown 타입을 반환하는게 더 안전함
+
+```tsx
+function safeParseYAML(yaml: string): unknown {
+  return parseYAML(yaml);
+}
+const book = safeParseYAML(`
+	name: The Tenat of Wildfell Hall
+	author: Anne Bronte
+`);
+alert(book.title); //개체가 unknown 형식입니다
+book("read"); //개체가 unknown 형식입니다.
+```
+
+unknown 타입을 이해하기 위해서는 할당 가능성의 관점에서 any를 생각해볼 필요가 있음.
+
+any가 강력하면서도 위험한 이유는 다음 두 가지 특징으로부터 비롯됨.
+
+1. 어떠한 타입이든 any 타입에 할당 가능
+2. any 타입은 어떠한 타입으로도 할당 가능
+
+타입을 집합으로 생각하기의 관점에서, 한 집합은 다른 모든 집합의 부분 집합이면서 동시에 상위집합이 될 수 없기 때문에, 분명히 any는 타입 시스템과 상충되는 면을 가지고 있음. 이러한 점이 any의 강력함의 원천이면서 동시에 문제를 일으키는 원인이 됨.
+
+타입 체커는 집합 기반이기 때문에 any를 사용하면 타입 체커가 무용지물이 된다는 것을 주의해야함.
+
+unknown은 any 대신 쓸 수 있는 타입 시스템에 부합하는 타입.
